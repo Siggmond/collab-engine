@@ -1,5 +1,17 @@
 # collab-engine
 
+[![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)](https://github.com/topics/python)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.x-009688?logo=fastapi&logoColor=white)](https://github.com/topics/fastapi)
+[![WebSockets](https://img.shields.io/badge/WebSockets-Real--Time-4353FF)](https://github.com/topics/websocket)
+[![CRDT](https://img.shields.io/badge/CRDT-Deterministic%20Merge-000000)](https://github.com/topics/crdt)
+[![Distributed Systems](https://img.shields.io/badge/Distributed%20Systems-Correctness--First-2F3136)](https://github.com/topics/distributed-systems)
+[![Testing](https://img.shields.io/badge/pytest-Test%20Suite-0A9EDC?logo=pytest&logoColor=white)](https://github.com/topics/pytest)
+[![Docs](https://img.shields.io/badge/Docs-Architecture%20%26%20Protocol-4B5563)](https://github.com/topics/documentation)
+[![Postgres (Phase 2)](https://img.shields.io/badge/PostgreSQL-Phase%202%20Plan-4169E1?logo=postgresql&logoColor=white)](https://github.com/topics/postgresql)
+[![Real-Time Collaboration](https://img.shields.io/badge/Real--Time-Collaboration-111827)](https://github.com/topics/real-time-collaboration)
+[![Phase 1](https://img.shields.io/badge/Phase%201-Locked%20%26%20Tested-16A34A)](#)
+
+
 Production-grade real-time collaboration engine (Google Docs–style core) built with Python + FastAPI.
 
 ## Architecture
