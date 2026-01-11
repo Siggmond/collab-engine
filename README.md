@@ -43,11 +43,11 @@ _Client connects via WebSocket and completes the mandatory `hello → hello_ack`
 _Two independent WebSocket clients connected to the same document receive the same `op_echo` messages in real time._
 
 ### Deterministic Concurrent Inserts (CRDT)
-![Deterministic Concurrent Inserts](docs/screenshots/06-concurrent-inserts.png)
+![Deterministic Concurrent Inserts](docs/screenshots/06-concurrent-inserts.jpeg)
 _Concurrent inserts targeting the same position converge deterministically across clients using total ordering on `(lamport, replica_id)`._
 
 ### Replay on Reconnect
-![Replay on Reconnect](docs/screenshots/07-replay.png)
+![Replay on Reconnect](docs/screenshots/07-replay.jpeg)
 _A client reconnects with `last_seen_server_seq`; the server replays only the missing operations from the op log._
 
 ### Snapshot Resync (Fallback)
