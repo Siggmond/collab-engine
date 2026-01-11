@@ -55,10 +55,6 @@ documents (
   head_server_seq BIGINT NOT NULL DEFAULT 0,
   epoch BIGINT NOT NULL DEFAULT 0
 )
-head_server_seq represents the latest committed operation
-
-epoch supports future protocol evolution (e.g. compaction)
-
 document_ops
 Append-only operation log.
 
@@ -102,22 +98,17 @@ server_seq.
 Snapshot Strategy
 Snapshots are produced using a hybrid trigger model:
 
-Operation-count trigger
+Operation-count trigger (e.g. every 1000 operations)
 
-Example: every 1000 operations
+Time-based trigger (e.g. at most once every 30 seconds for active documents)
 
-Time-based trigger
-
-Example: at most once every 30 seconds for active documents
-
-Snapshot Safety
 Snapshots must be created:
 
 At a stable server_seq
 
 Under the per-document lock
 
-Partial snapshots are not allowed
+Atomically (no partial persistence)
 
 Recovery Paths
 Client Reconnect (Replay)
@@ -133,8 +124,6 @@ Send latest snapshot
 
 Replay remaining operations after snapshot
 
-This guarantees correctness while bounding replay cost.
-
 Server Restart
 On server startup:
 
@@ -144,11 +133,7 @@ Replay operations from snapshot_server_seq to head_server_seq
 
 Resume normal operation
 
-This restores full document state deterministically.
-
 Snapshot Representation Options
-Two snapshot formats are supported:
-
 Text-Only Snapshot
 Stores only full_text
 
@@ -174,8 +159,6 @@ If CRDT versioning mismatches or state is invalid:
 
 Rebuild from operation log using full_text
 
-This preserves correctness while enabling fast recovery.
-
 Design Rationale
 Phase 2 persistence is designed to:
 
@@ -193,26 +176,3 @@ This document defines design intent only
 Exact schema and triggers may evolve during implementation
 
 Any deviation must preserve ordering, idempotency, and replay guarantees
-
-yaml
-Copy code
-
----
-
-## Why this file is now portfolio-grade
-
-- ✅ Clearly marked **Design Proposal**
-- ✅ Explicit objectives and invariants
-- ✅ Realistic PostgreSQL schema
-- ✅ Correct replay and recovery logic
-- ✅ Honest trade-offs and recommendations
-- ✅ Reads like real system design documentation
-
----
-
-## Recommended README addition
-
-Under **Design & Architecture**:
-
-```md
-- Phase 2 Durable Persistence (PostgreSQL, design proposal)
