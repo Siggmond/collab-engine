@@ -93,7 +93,7 @@ Phase 1 uses an **RGA-style sequence CRDT**:
 - Missing dependencies are buffered until resolved
 
 Detailed invariants and trade-offs are documented in:  
-📄 [`docs/crdt.md`](docs/crdt.md)
+📄 [`docs/crdt.md`](docs/crdt/crdt.md)
 
 ---
 
@@ -105,7 +105,7 @@ Detailed invariants and trade-offs are documented in:
 - Deterministic broadcast via `op_echo`
 
 Full protocol specification:  
-📄 [`docs/protocol.md`](docs/protocol.md)
+📄 [`docs/protocol.md`](docs/protocol/protocol.md)
 
 ---
 
