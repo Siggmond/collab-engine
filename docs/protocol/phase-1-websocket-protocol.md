@@ -17,6 +17,7 @@ field.
 ## General Conventions
 
 - All messages include a `type` field
+- The first client message on a WebSocket connection must be `hello`
 - Clients may send operations optimistically
 - The server assigns the authoritative `server_seq`
 - Clients must tolerate receiving their own operations back from the server
@@ -100,15 +101,15 @@ Sent in response to `hello`.
 {
   "type": "hello_ack",
   "doc_id": "doc-123",
-  "server_seq": 42,
-  "full_text": "..."
+  "server_seq": 42
 }
 ```
 
 **Semantics:**
 - Confirms successful session establishment
 - Communicates the current authoritative sequence
-- May include an initial snapshot of document state
+- Does not carry snapshot text; initial state is sent through replayed
+  `op_echo` messages or a separate `resync` message
 
 ---
 

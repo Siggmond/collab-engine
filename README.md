@@ -1,169 +1,173 @@
 # collab-engine
 
-[![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)](https://github.com/topics/python)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.x-009688?logo=fastapi&logoColor=white)](https://github.com/topics/fastapi)
-[![WebSockets](https://img.shields.io/badge/WebSockets-Real--Time-4353FF)](https://github.com/topics/websocket)
-[![CRDT](https://img.shields.io/badge/CRDT-Deterministic%20Merge-000000)](https://github.com/topics/crdt)
-[![Distributed Systems](https://img.shields.io/badge/Distributed%20Systems-Correctness--First-2F3136)](https://github.com/topics/distributed-systems)
-[![Testing](https://img.shields.io/badge/pytest-Test%20Suite-0A9EDC?logo=pytest&logoColor=white)](https://github.com/topics/pytest)
-[![Docs](https://img.shields.io/badge/Docs-Architecture%20%26%20Protocol-4B5563)](https://github.com/topics/documentation)
-[![Postgres (Phase 2)](https://img.shields.io/badge/PostgreSQL-Phase%202%20Design-4169E1?logo=postgresql&logoColor=white)](https://github.com/topics/postgresql)
-[![Phase 1](https://img.shields.io/badge/Phase%201-Locked%20%26%20Tested-16A34A)](#)
+collab-engine is a correctness-focused real-time collaboration backend: the core backend idea behind a Google Docs-style shared text editor, implemented with Python, FastAPI, WebSockets, and a deterministic text CRDT.
 
-A **production-grade real-time collaboration backend** (Google Docs–style core) built with **Python** and **FastAPI**.  
-The system implements a **deterministic text CRDT** to safely merge concurrent edits over **WebSockets**, with correctness-first **replay / resync semantics** and a clearly documented path to durable persistence.
+Phase 1 is an in-memory reference implementation designed for portfolio review and technical evaluation. It demonstrates protocol semantics, replay/resync behavior, and CRDT correctness boundaries; it is not a full production collaboration platform.
 
----
+## Quick Reviewer Path
 
-## Project Status
+If you have five minutes, start here:
 
-### Phase 1 — Core Collaboration Engine (Current)
-- ✔ Implemented
-- ✔ Covered by automated tests
-- ✔ Deterministic and correctness-focused
-- ✔ **Frozen / locked** (no further behavioral changes)
+1. Understand the problem: collab-engine accepts WebSocket clients editing the same document, assigns authoritative server ordering, integrates edits through a deterministic text CRDT, broadcasts canonical operation echoes, and helps reconnecting clients recover with replay or snapshot resync.
+2. Confirm Phase 1 scope: the implemented system includes the FastAPI WebSocket endpoint, per-document rooms, strict `hello` / `hello_ack` handshake, in-memory op log and snapshots, server-assigned `server_seq`, RGA-style insert/delete behavior, replay-on-reconnect, and snapshot resync fallback.
+3. Inspect the key code and docs:
 
-### Phase 2 — Operational Evolution (Design Only)
-- 📄 Architecture & design documents available under `docs/`
-- ❌ Intentionally **not implemented** to preserve Phase 1 correctness guarantees
+| Topic | Where to look |
+| --- | --- |
+| CRDT logic | [`src/collab_engine/core/crdt/rga.py`](src/collab_engine/core/crdt/rga.py), [`docs/crdt/phase-1-text-crdt.md`](docs/crdt/phase-1-text-crdt.md) |
+| WebSocket protocol | [`src/collab_engine/api/ws.py`](src/collab_engine/api/ws.py), [`src/collab_engine/core/protocol/messages.py`](src/collab_engine/core/protocol/messages.py), [`docs/protocol/phase-1-websocket-protocol.md`](docs/protocol/phase-1-websocket-protocol.md) |
+| Server sequencing and snapshots | [`src/collab_engine/services/document_service.py`](src/collab_engine/services/document_service.py), [`src/collab_engine/persistence/memory.py`](src/collab_engine/persistence/memory.py) |
+| Replay/resync behavior | [`docs/reliability/phase-1-failure-recovery.md`](docs/reliability/phase-1-failure-recovery.md), [`src/collab_engine/api/ws.py`](src/collab_engine/api/ws.py) |
+| Correctness tests | [`tests/test_rga.py`](tests/test_rga.py), [`tests/test_snapshot_replay.py`](tests/test_snapshot_replay.py) |
+| Phase 2 boundary | [`docs/plan/phase-2-design-plan.md`](docs/plan/phase-2-design-plan.md), [`docs/persistence/phase-2-persistence.md`](docs/persistence/phase-2-persistence.md), [`docs/design/phase2_compaction.md`](docs/design/phase2_compaction.md), [`docs/presence/phase-2-presence.md`](docs/presence/phase-2-presence.md) |
 
----
+Run the server:
 
-## Preview / Screenshots
+```bash
+pip install -r requirements.txt
+uvicorn collab_engine.main:app --app-dir src --host 0.0.0.0 --port 8000
+```
 
-> The following screenshots demonstrate protocol correctness, real-time fan-out, and recovery behavior.  
-> No UI is involved — all screenshots are taken from WebSocket clients and server logs.
+Run tests:
 
-### WebSocket Handshake
-![WebSocket Handshake](docs/screenshots/04-ws-handshake.png)
-_Client connects via WebSocket and completes the mandatory `hello → hello_ack` handshake, followed by an initial snapshot (`resync`)._
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
-### Real-Time Collaboration (Two Clients)
-![Two Clients Receiving Updates](docs/screenshots/05-two-clients.png)
-_Two independent WebSocket clients connected to the same document receive the same `op_echo` messages in real time._
+The protocol examples in [`docs/protocol/phase-1-websocket-protocol.md`](docs/protocol/phase-1-websocket-protocol.md) show the JSON contract for client hello, operations, server acknowledgements, operation echo, and resync. The screenshots in [`docs/screenshots/`](docs/screenshots/) show the server, health/API surface, WebSocket handshake, multi-client behavior, concurrent inserts, replay, and resync flows.
 
-### Deterministic Concurrent Inserts (CRDT)
-![Deterministic Concurrent Inserts](docs/screenshots/06-concurrent-inserts.jpeg)
-_Concurrent inserts targeting the same position converge deterministically across clients using total ordering on `(lamport, replica_id)`._
+## What This Project Proves
 
-### Replay on Reconnect
-![Replay on Reconnect](docs/screenshots/07-replay.jpeg)
-_A client reconnects with `last_seen_server_seq`; the server replays only the missing operations from the op log._
+- Real-time backend architecture with FastAPI and WebSockets.
+- Deterministic text CRDT behavior using an RGA-style sequence model.
+- Safe handling of concurrent inserts by ordering same-parent children with `(lamport, replica_id)`.
+- Tombstone-based deletes that preserve references needed by later operations.
+- Authoritative server sequencing with monotonic per-document `server_seq`.
+- Replay-on-reconnect using `last_seen_server_seq`.
+- Snapshot resync fallback when replay is not available or not appropriate.
+- Protocol design with a strict first-message `hello` and server `hello_ack`.
+- Correctness-focused automated tests for CRDT determinism, dependency buffering, tombstones, idempotent replay, and snapshot/replay consistency.
+- Honest separation between implemented Phase 1 behavior and design-only Phase 2 plans.
 
-### Snapshot Resync (Fallback)
-![Snapshot Resync](docs/screenshots/08-resync.png)
-_When replay is not possible, the server safely falls back to a full snapshot resync to re-establish a correct baseline._
+## Phase 1 vs Phase 2
 
----
+| Phase | Status | Scope |
+| --- | --- | --- |
+| Phase 1 | Implemented, tested, frozen/locked | In-memory FastAPI/WebSocket collaboration backend, deterministic RGA-style text CRDT, per-document rooms, authoritative sequencing, in-memory op log/snapshot storage, replay/resync behavior, and core correctness tests. |
+| Phase 2 | Docs/design only, not implemented | Durable PostgreSQL persistence, tombstone compaction, presence/cursors, auth/authorization boundary, deeper observability, and scaling strategy proposals. |
 
-## Architecture Overview
+Reviewers should treat Phase 1 as the executable reference implementation and Phase 2 as architecture planning. Phase 2 documents are intentionally present to show forward design thinking, not to claim runtime support.
 
-### Components
-- **CRDT Core** — RGA-style sequence CRDT for collaborative text
-- **Transport Layer** — WebSocket-based real-time messaging
-- **Session Management** — per-document rooms and client fan-out
-- **Persistence Layer** — operation log + snapshots  
-  *(Phase 1: in-memory reference implementation)*
-- **API Layer** — FastAPI (HTTP + WebSocket)
+## Architecture
 
-### End-to-End Data Flow
-1. Client connects via WebSocket and sends `hello`
-2. Server responds with `hello_ack` and chooses:
-   - op-log replay, or
-   - full snapshot resync
-3. Client sends `op` messages (insert / delete)
-4. Server:
-   - integrates via CRDT
-   - assigns authoritative `server_seq`
-   - appends to op log
-   - broadcasts `op_echo` to all connected clients (including origin)
+Components:
 
----
+- Collaboration Engine: deterministic RGA-style sequence CRDT for plain text.
+- Transport Layer: WebSocket-based real-time communication.
+- Session Management: connected clients and per-document rooms.
+- Persistence Layer: in-memory operation log and latest text snapshot for Phase 1.
+- API Layer: FastAPI health endpoint and WebSocket endpoint.
+
+Data flow:
+
+1. Client connects to `WS /ws` and sends `hello`.
+2. Server validates that `hello` is the first message and responds with `hello_ack`.
+3. Server sends either replayed `op_echo` messages or a `resync` snapshot.
+4. Client sends `op` messages.
+5. Server integrates each operation through the CRDT, assigns `server_seq`, appends to the in-memory op log, updates the snapshot text, and broadcasts `op_echo` to all clients in the document room, including the origin client.
 
 ## CRDT Model
 
-Phase 1 uses an **RGA-style sequence CRDT**:
+Phase 1 uses an RGA-style sequence CRDT:
 
-- Insert-after semantics using `parent_id`
-- Concurrent inserts at the same position are ordered deterministically by:
-  ```
-  (lamport, replica_id)
-  ```
-- Deletes are represented as tombstones
-- Missing dependencies are buffered until resolved
+- Inserts reference a `parent_id` using insert-after semantics.
+- Concurrent inserts after the same parent are deterministically ordered by `(lamport, replica_id)`.
+- Deletes are tombstones, so removed elements remain addressable for later dependent operations.
+- Inserts and deletes that arrive before their dependencies are buffered until the dependency exists.
 
-Detailed invariants and trade-offs are documented in:  
-📄 [`docs/crdt.md`](docs/crdt/crdt.md)
-
----
+See [`docs/crdt/phase-1-text-crdt.md`](docs/crdt/phase-1-text-crdt.md) and [`tests/test_rga.py`](tests/test_rga.py).
 
 ## WebSocket Protocol
 
-- Strict handshake (`hello` → `hello_ack`)
-- Authoritative server sequencing (`server_seq`)
-- Replay-on-reconnect and snapshot fallback
-- Deterministic broadcast via `op_echo`
+The WebSocket protocol is intentionally small:
 
-Full protocol specification:  
-📄 [`docs/protocol.md`](docs/protocol/protocol.md)
+- Client to server: `hello`, then `op`.
+- Server to client: `hello_ack`, `op_echo`, and `resync`.
+- The first client message must be `hello`; invalid or out-of-order messages are closed as protocol violations.
+- Clients may apply operations optimistically, but the server echo is the authoritative sequenced record.
 
----
+See [`docs/protocol/phase-1-websocket-protocol.md`](docs/protocol/phase-1-websocket-protocol.md) and [`docs/reliability/phase-1-failure-recovery.md`](docs/reliability/phase-1-failure-recovery.md).
 
-## Running Locally
+## Screenshots and Protocol Evidence
 
-### Install dependencies
+These assets are optional reviewer evidence, not required to run the project:
+
+| Evidence | What it shows |
+| --- | --- |
+| [`docs/screenshots/01-server-running.png`](docs/screenshots/01-server-running.png) | Uvicorn server running locally. |
+| [`docs/screenshots/02-health.png`](docs/screenshots/02-health.png) | Health endpoint response. |
+| [`docs/screenshots/03-swagger.png`](docs/screenshots/03-swagger.png) | FastAPI API documentation surface. |
+| [`docs/screenshots/04-ws-handshake.png`](docs/screenshots/04-ws-handshake.png) | WebSocket `hello` / `hello_ack` handshake and initial sync path. |
+| [`docs/screenshots/05-two-clients.png`](docs/screenshots/05-two-clients.png) | Two clients sharing a document room. |
+| [`docs/screenshots/06-concurrent-inserts.jpeg`](docs/screenshots/06-concurrent-inserts.jpeg) | Concurrent insert behavior under deterministic CRDT ordering. |
+| [`docs/screenshots/07-replay.jpeg`](docs/screenshots/07-replay.jpeg) | Reconnect replay behavior. |
+| [`docs/screenshots/08-resync.png`](docs/screenshots/08-resync.png) | Snapshot resync fallback behavior. |
+
+## Running
+
+Install runtime dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### Run the server
+Run the server:
+
 ```bash
 uvicorn collab_engine.main:app --app-dir src --host 0.0.0.0 --port 8000
 ```
 
-### Endpoints
-- Health check: `GET /health`
-- WebSocket endpoint: `WS /ws`
+Useful endpoints:
 
----
+- `GET /health`
+- `WS /ws`
 
 ## Tests
 
-Core correctness guarantees are covered by automated tests:
+Install test dependency:
 
-- Deterministic ordering of concurrent inserts
-- Tombstone handling and idempotent replay
-- Snapshot equivalence with op-log replay
-- Service rebuild from persistence
+```bash
+pip install -r requirements-dev.txt
+```
 
-Run tests with:
+Run the available test suite:
+
 ```bash
 pytest
 ```
 
----
+The tests focus on CRDT correctness and replay/snapshot consistency rather than UI behavior because this repository does not include a frontend.
 
-## Phase 2 (Design Highlights)
+## Current Scope / Honest Limitations
 
-Phase 2 is **explicitly design-only** and documents realistic next steps without modifying Phase 1 behavior:
+- Phase 1 persistence is in-memory.
+- Restarting the server clears document state.
+- There is no UI; this is backend/protocol work only.
+- Auth and authorization are Phase 2 design boundaries, not implemented production controls.
+- Phase 2 is design-only unless code is explicitly added later.
+- Production use would require durable persistence, authentication and authorization, rate limiting, a horizontal scaling strategy, observability, stronger backpressure handling, deployment hardening, and operational testing.
 
-- PostgreSQL-backed persistence
-- Snapshot frequency and replay bounding
-- Tombstone compaction strategies
-- Presence and cursor model
-- Authentication / authorization boundaries
+## Documentation Map
 
-All Phase 2 documents live under `docs/`.
-
----
-
-## Notes
-
-- Phase 1 persistence is intentionally **in-memory**; restarting the server clears state.
-- This repository focuses on **correctness, determinism, and protocol clarity**, not UI concerns.
-- Designed as a backend system component suitable for collaborative editors, tooling, or research prototypes.
-
----
+- [`docs/architecture/phase-1-architecture.md`](docs/architecture/phase-1-architecture.md): Phase 1 architecture and invariants.
+- [`docs/crdt/phase-1-text-crdt.md`](docs/crdt/phase-1-text-crdt.md): RGA-style text CRDT model and trade-offs.
+- [`docs/protocol/phase-1-websocket-protocol.md`](docs/protocol/phase-1-websocket-protocol.md): WebSocket message contract.
+- [`docs/reliability/phase-1-failure-recovery.md`](docs/reliability/phase-1-failure-recovery.md): reconnect replay, resync, slow-consumer, and restart behavior.
+- [`docs/plan/phase-2-design-plan.md`](docs/plan/phase-2-design-plan.md): Phase 2 design plan and boundaries.
+- [`docs/persistence/phase-2-persistence.md`](docs/persistence/phase-2-persistence.md): proposed PostgreSQL persistence model.
+- [`docs/design/phase2_compaction.md`](docs/design/phase2_compaction.md): proposed tombstone compaction strategy.
+- [`docs/presence/phase-2-presence.md`](docs/presence/phase-2-presence.md): proposed presence/cursor model.
 
 ## License
 
